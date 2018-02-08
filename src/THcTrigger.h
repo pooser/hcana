@@ -9,25 +9,32 @@
 
 #include "TClonesArray.h"
 #include "THaNonTrackingDetector.h"
+#include "THaDetector.h"
 #include "THcHitList.h"
 #include "THcTriggerHit.h"
 
 class THcHodoscope;
-class THcTrigger : public THaNonTrackingDetector, public THcHitList {
+class TDatime;
+class THaApparatus;
+class THaEvData;
 
+class THcTrigger : public THaNonTrackingDetector, public THcHitList {
  public:
   THcTrigger(const char* name, const char* description = "", THaApparatus* a = NULL);
   virtual ~THcTrigger();
+
+  virtual EStatus Init(const TDatime& run_time);
 
   virtual void    Clear(Option_t* opt="");
   virtual Int_t   ReadDatabase(const TDatime& date);
   virtual Int_t   DefineVariables(EMode mode = kDefine);
   virtual Int_t   Decode(const THaEvData&);
-  //virtual Int_t   CoarseProcess(TClonesArray& tracks);
-  virtual EStatus Init(const TDatime& run_time);
-  virtual void SetSpectName( const char* name);
-  virtual void AddEvtType(int evtype);
-  virtual void SetEvtType(int evtype);
+  virtual Int_t   CoarseProcess(TClonesArray& tracks);
+  virtual Int_t   FineProcess(TClonesArray& tracks);
+
+  virtual void   SetSpectName( const char* name);
+  virtual void   AddEvtType(int evtype);
+  virtual void   SetEvtType(int evtype);
   virtual Bool_t IsIgnoreType(Int_t evtype) const;
   virtual Bool_t HaveIgnoreList() const;  
 
@@ -65,7 +72,8 @@ class THcTrigger : public THaNonTrackingDetector, public THcHitList {
   vector<Double_t> fGoodAdcTdcDiffTime; 
  
   // 12 Gev FADC variables
-  TClonesArray* frAdcPedRaw;
+  //TClonesArray* frAdcPedRaw;
+  vector<TClonesArray*> frAdcPedRaw;
   TClonesArray* frAdcPulseIntRaw;
   TClonesArray* frAdcPulseAmpRaw;
   TClonesArray* frAdcPulseTimeRaw;
