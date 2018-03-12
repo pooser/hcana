@@ -45,64 +45,33 @@ using std::setprecision;
 THcTrigger::THcTrigger(const char* name, const char* description, THaApparatus* apparatus) :
   THaNonTrackingDetector(name,description,apparatus)
 {
-
-  for (int i = 0; i < fNumAdc; i++) {
-    frAdcPedRaw.at(i) = new TClonesArray("THcSignalHit", MaxNumAdcPulse);
-  }
-
-  // Normal constructor with name and description
-  //frAdcPedRaw       = new TClonesArray("THcSignalHit", MaxNumPmt*MaxNumAdcPulse);
-  frAdcPulseIntRaw  = new TClonesArray("THcSignalHit", MaxNumPmt*MaxNumAdcPulse);
-  frAdcPulseAmpRaw  = new TClonesArray("THcSignalHit", MaxNumPmt*MaxNumAdcPulse);
-  frAdcPulseTimeRaw = new TClonesArray("THcSignalHit", MaxNumPmt*MaxNumAdcPulse);
-  frAdcPed          = new TClonesArray("THcSignalHit", MaxNumPmt*MaxNumAdcPulse);
-  frAdcPulseInt     = new TClonesArray("THcSignalHit", MaxNumPmt*MaxNumAdcPulse);
-  frAdcPulseAmp     = new TClonesArray("THcSignalHit", MaxNumPmt*MaxNumAdcPulse);
-  frAdcPulseTime    = new TClonesArray("THcSignalHit", MaxNumPmt*MaxNumAdcPulse);
-  fAdcErrorFlag     = new TClonesArray("THcSignalHit", MaxNumPmt*MaxNumAdcPulse);
-
-  fGoodAdcPed         = vector<Double_t> (MaxNumPmt, 0.0);
-  fGoodAdcPulseInt    = vector<Double_t> (MaxNumPmt, 0.0);
-  fGoodAdcPulseIntRaw = vector<Double_t> (MaxNumPmt, 0.0);
-  fGoodAdcPulseAmp    = vector<Double_t> (MaxNumPmt, 0.0);
-  fGoodAdcPulseTime   = vector<Double_t> (MaxNumPmt, 0.0);
-  fGoodAdcTdcDiffTime = vector<Double_t> (MaxNumPmt, 0.0);
+  // Constructor
 }
 
 THcTrigger::THcTrigger() : THaNonTrackingDetector()
 {
-  for (int i = 0; i < fNumAdc; i++) {
-    frAdcPedRaw.at(i) = NULL;
-  }
-
   // Constructor
-  // frAdcPedRaw       = NULL;
-  frAdcPulseIntRaw  = NULL;
-  frAdcPulseAmpRaw  = NULL;
-  frAdcPulseTimeRaw = NULL;
-  frAdcPed          = NULL;
-  frAdcPulseInt     = NULL;
-  frAdcPulseAmp     = NULL;
-  frAdcPulseTime    = NULL;
-  fAdcErrorFlag     = NULL;
 }
 
 THcTrigger::~THcTrigger()
 {
-  for (int i = 0; i < fNumAdc; i++) {
-    delete frAdcPedRaw.at(i); frAdcPedRaw.at(i) = NULL;
-  }
-
   // Destructor
-  //delete frAdcPedRaw;       frAdcPedRaw       = NULL;
-  delete frAdcPulseIntRaw;  frAdcPulseIntRaw  = NULL;
-  delete frAdcPulseAmpRaw;  frAdcPulseAmpRaw  = NULL;
-  delete frAdcPulseTimeRaw; frAdcPulseTimeRaw = NULL;
-  delete frAdcPed;          frAdcPed          = NULL;
-  delete frAdcPulseInt;     frAdcPulseInt     = NULL;
-  delete frAdcPulseAmp;     frAdcPulseAmp     = NULL;
-  delete frAdcPulseTime;    frAdcPulseTime    = NULL;
-  delete fAdcErrorFlag;     fAdcErrorFlag     = NULL;
+}
+
+void THcTrigger::Setup(const char* name, const char* description) {
+  // Prefix for parameters in `param` file.
+  string kwPrefix = string(GetApparatus()->GetName()) + "_" + name;
+  transform(kwPrefix.begin(), kwPrefix.end(), kwPrefix.begin(), ::tolower);
+  fKwPrefix = kwPrefix;
+  // Obtain values in database
+  DBRequest numChanList[] = {
+    {"_numAdc", &fNumAdc, kInt}, // Number of ADC channels.
+    {"_numTdc", &fNumTdc, kInt}, // Number of TDC channels.
+    {0}
+  };
+  // Load parameter values
+  gHcParms->LoadParmValues((DBRequest*)&numChanList, kwPrefix.c_str());
+  cout << "The trigger detector has fNumAdc = " << fNumAdc << " & fNumTdc = " << fNumTdc << " defined " << endl;
 }
 
 THaAnalysisObject::EStatus THcTrigger::Init( const TDatime& date )
@@ -110,7 +79,6 @@ THaAnalysisObject::EStatus THcTrigger::Init( const TDatime& date )
  
   // Call `Setup` before everything else.
   Setup(GetName(), GetTitle());
-
   // cout << "THcTrigger::Init for: " << GetName() << endl;
 
   string EngineDID = string(GetApparatus()->GetName()).substr(0, 1) + GetName();
@@ -139,6 +107,29 @@ THaAnalysisObject::EStatus THcTrigger::Init( const TDatime& date )
   THaVar* vpresent = gHaVars->Find(Form("%s.present",GetApparatus()->GetName()));
   if(vpresent)
     fPresentP = (Bool_t *) vpresent->GetValuePointer();
+
+  // Initialize vector<TClonesArray*> objects
+  // ADC objects
+  for (int i = 0; i < fNumAdc; i++) {
+    // Raw ADC objects
+    fAdcPulsePedRaw.push_back(new TClonesArray("THcSignalHit", MaxNumAdcPulse));
+    fAdcPulseIntRaw.push_back(new TClonesArray("THcSignalHit", MaxNumAdcPulse));
+    fAdcPulseAmpRaw.push_back(new TClonesArray("THcSignalHit", MaxNumAdcPulse));
+    fAdcPulseTimeRaw.push_back(new TClonesArray("THcSignalHit", MaxNumAdcPulse));
+    // ADC objects
+    fAdcPulsePed.push_back(new TClonesArray("THcSignalHit", MaxNumAdcPulse));
+    fAdcPulseInt.push_back(new TClonesArray("THcSignalHit", MaxNumAdcPulse));
+    fAdcPulseAmp.push_back(new TClonesArray("THcSignalHit", MaxNumAdcPulse));
+    fAdcPulseTime.push_back(new TClonesArray("THcSignalHit", MaxNumAdcPulse));
+    fAdcErrorFlag.push_back(new TClonesArray("THcSignalHit", MaxNumAdcPulse));
+    fAdcMultiplicity.push_back(new TClonesArray("THcSignalHit", MaxNumAdcPulse));
+  } // fNumAdc loop
+  // TDC objects
+  for (int i = 0; i < fNumTdc; i++) {
+    fTdcTimeRaw.push_back(new TClonesArray("THcSignalHit", MaxNumTdcHits));
+    fTdcTime.push_back(new TClonesArray("THcSignalHit", MaxNumTdcHits));
+    fTdcMultiplicity.push_back(new TClonesArray("THcSignalHit", MaxNumTdcHits));
+  }
   
   fStatus = kOK;
   return fStatus;
@@ -150,8 +141,6 @@ Int_t THcTrigger::ReadDatabase(const TDatime& date)
   string adcNames, tdcNames;
 
   DBRequest list[] = {
-    {"_numAdc",         &fNumAdc,       kInt},           // Number of ADC channels.
-    {"_numTdc",         &fNumTdc,       kInt},           // Number of TDC channels.
     {"_adcNames",       &adcNames,      kString},        // Names of ADC channels.
     {"_tdcNames",       &tdcNames,      kString},        // Names of TDC channels.
     {"_tdcoffset",      &fTdcOffset,    kDouble, 0, 1},  // Offset of tdc channels
@@ -159,7 +148,7 @@ Int_t THcTrigger::ReadDatabase(const TDatime& date)
     {"_tdcchanperns",   &fTdcChanPerNs, kDouble, 0, 1},  // Convert channesl to ns
     {0}
   };
-
+  // Hard code DB values in case not derfined in parameter file
   fTdcOffset    = 300.;
   fAdcTdcOffset = 200.;
   fTdcChanPerNs = 0.1;
@@ -177,158 +166,184 @@ Int_t THcTrigger::DefineVariables(THaAnalysisObject::EMode mode) {
   fIsSetup = (mode == kDefine);
 
   vector<RVarDef> vars;
- 
+
   // Push the variable names for ADC channels.
-  vector<TString> adcPedRawTitle(fNumAdc),       adcPedRawVar(fNumAdc);
+  vector<TString> adcPulsePedRawTitle(fNumAdc),  adcPulsePedRawVar(fNumAdc);
   vector<TString> adcPulseIntRawTitle(fNumAdc),  adcPulseIntRawVar(fNumAdc);
   vector<TString> adcPulseAmpRawTitle(fNumAdc),  adcPulseAmpRawVar(fNumAdc);
   vector<TString> adcPulseTimeRawTitle(fNumAdc), adcPulseTimeRawVar(fNumAdc);
   vector<TString> adcPulseTimeTitle(fNumAdc),    adcPulseTimeVar(fNumAdc);
-  vector<TString> adcPedTitle(fNumAdc),          adcPedVar(fNumAdc);
+  vector<TString> adcPulsePedTitle(fNumAdc),     adcPulsePedVar(fNumAdc);
   vector<TString> adcPulseIntTitle(fNumAdc),     adcPulseIntVar(fNumAdc);
   vector<TString> adcPulseAmpTitle(fNumAdc),     adcPulseAmpVar(fNumAdc);
+  vector<TString> adcErrorFlagTitle(fNumAdc),    adcErrorFlagVar(fNumAdc);
   vector<TString> adcMultiplicityTitle(fNumAdc), adcMultiplicityVar(fNumAdc);
 
+  // RVarDef vars[] = {
+  //   {"pAER_adcPulsePedRaw", "test", "fAdcPedRaw[0].THcSignalHit.GetData()"},        // Cherenkov occupancy
+  //   { 0 }
+  // };
+  // DefineVarsFromList( vars, mode);
+
+  // Loop through the adcNames defined in the trigger parameter file, 
+  // asign them a leaf name, and acquire the associated data object
   for (int i = 0; i < fNumAdc; i++) {
-    adcPedRawTitle.at(i) = fAdcNames.at(i) + "_adcPedRaw";
-    adcPedRawVar.at(i) = "fAdcPedRaw.THcSignalHit.GetData()";
+    
+    cout << "DefineVariables Pad i = " << i << endl;
+    cout << "fNumAdc = " << fNumAdc << endl;
+
+    adcPulsePedRawTitle.at(i) = fAdcNames.at(i) + "_adcPulsePedRaw";
+    adcPulsePedRawVar.at(i) = Form("fAdcPulsePedRaw[%d].THcSignalHit.GetData()", i);
     RVarDef entry1 {
-      adcPedRawTitle.at(i).Data(), 
-      adcPedRawTitle.at(i).Data(),   
-      adcPedRawVar.at(i).Data()
+      adcPulsePedRawTitle.at(i).Data(), 
+      adcPulsePedRawTitle.at(i).Data(),   
+      adcPulsePedRawVar.at(i).Data()
     };
     vars.push_back(entry1);
 
-    // adcPulseIntRawTitle.at(i) = fAdcNames.at(i) + "_adcPulseIntRaw";
-    // adcPulseIntRawVar.at(i) = "fAdcPulseIntRaw.THcSignalHit.GetData()";
-    // RVarDef entry2 {
-    //   adcPulseIntRawTitle.at(i).Data(),
-    //   adcPulseIntRawTitle.at(i).Data(),
-    //   adcPulseIntRawVar.at(i).Data()
-    // };
-    // vars.push_back(entry2);
+    adcPulseIntRawTitle.at(i) = fAdcNames.at(i) + "_adcPulseIntRaw";
+    adcPulseIntRawVar.at(i) = Form("fAdcPulseIntRaw[%d].THcSignalHit.GetData()", i);
+    RVarDef entry2 {
+      adcPulseIntRawTitle.at(i).Data(),
+      adcPulseIntRawTitle.at(i).Data(),
+      adcPulseIntRawVar.at(i).Data()
+    };
+    vars.push_back(entry2);
 
-    // adcPulseAmpRawTitle.at(i) = fAdcNames.at(i) + "_adcPulseAmpRaw";
-    // adcPulseAmpRawVar.at(i) = "fAdcPulseAmpRaw.THcSignalHit.GetData()";
-    // RVarDef entry3 {
-    //   adcPulseAmpRawTitle.at(i).Data(),
-    //   adcPulseAmpRawTitle.at(i).Data(),
-    //   adcPulseAmpRawVar.at(i).Data()
-    // };
-    // vars.push_back(entry3);
+    adcPulseAmpRawTitle.at(i) = fAdcNames.at(i) + "_adcPulseAmpRaw";
+    adcPulseAmpRawVar.at(i) = Form("fAdcPulseAmpRaw[%d].THcSignalHit.GetData()", i);
+    RVarDef entry3 {
+      adcPulseAmpRawTitle.at(i).Data(),
+      adcPulseAmpRawTitle.at(i).Data(),
+      adcPulseAmpRawVar.at(i).Data()
+    };
+    vars.push_back(entry3);
 
-    // adcPulseTimeRawTitle.at(i) = fAdcNames.at(i) + "_adcPulseTimeRaw";
-    // adcPulseTimeRawVar.at(i) = "fAdcPulseTimeRaw.THcSignalHit.GetData()";
-    // RVarDef entry4 {
-    //   adcPulseTimeRawTitle.at(i).Data(),
-    //   adcPulseTimeRawTitle.at(i).Data(),
-    //   adcPulseTimeRawVar.at(i).Data()
-    // };
-    // vars.push_back(entry4);
+    adcPulseTimeRawTitle.at(i) = fAdcNames.at(i) + "_adcPulseTimeRaw";
+    adcPulseTimeRawVar.at(i) = Form("fAdcPulseTimeRaw[%d].THcSignalHit.GetData()", i);
+    RVarDef entry4 {
+      adcPulseTimeRawTitle.at(i).Data(),
+      adcPulseTimeRawTitle.at(i).Data(),
+      adcPulseTimeRawVar.at(i).Data()
+    };
+    vars.push_back(entry4);
 
-    // adcPedTitle.at(i) = fAdcNames.at(i) + "_adcPed";
-    // adcPedVar.at(i) = "fAdcPed.THcSignalHit.GetData()";
-    // RVarDef entry5 {
-    //   adcPedTitle.at(i).Data(),
-    //   adcPedTitle.at(i).Data(),
-    //   adcPedVar.at(i).Data()
-    // };
-    // vars.push_back(entry5);
+    adcPulsePedTitle.at(i) = fAdcNames.at(i) + "_adcPulsePed";
+    adcPulsePedVar.at(i) = Form("fAdcPulsePed[%d].THcSignalHit.GetData()", i);
+    RVarDef entry5 {
+      adcPulsePedTitle.at(i).Data(),
+      adcPulsePedTitle.at(i).Data(),
+      adcPulsePedVar.at(i).Data()
+    };
+    vars.push_back(entry5);
 
-    // adcPulseIntTitle.at(i) = fAdcNames.at(i) + "_adcPulseInt";
-    // adcPulseIntVar.at(i) = "fAdcPulseInt.THcSignalHit.GetData()";
-    // RVarDef entry6 {
-    //   adcPulseIntTitle.at(i).Data(),
-    //   adcPulseIntTitle.at(i).Data(),
-    //   adcPulseIntVar.at(i).Data()
-    // };
-    // vars.push_back(entry6);
+    adcPulseIntTitle.at(i) = fAdcNames.at(i) + "_adcPulseInt";
+    adcPulseIntVar.at(i) = Form("fAdcPulseInt[%d].THcSignalHit.GetData()", i);
+    RVarDef entry6 {
+      adcPulseIntTitle.at(i).Data(),
+      adcPulseIntTitle.at(i).Data(),
+      adcPulseIntVar.at(i).Data()
+    };
+    vars.push_back(entry6);
 
-    // adcPulseAmpTitle.at(i) = fAdcNames.at(i) + "_adcPulseAmp";
-    // adcPulseAmpVar.at(i) = "fAdcPulseAmp.THcSignalHit.GetData()";
-    // RVarDef entry7 {
-    //   adcPulseAmpTitle.at(i).Data(),
-    //   adcPulseAmpTitle.at(i).Data(),
-    //   adcPulseAmpVar.at(i).Data()
-    // };
-    // vars.push_back(entry7);
+    adcPulseAmpTitle.at(i) = fAdcNames.at(i) + "_adcPulseAmp";
+    adcPulseAmpVar.at(i) = Form("fAdcPulseAmp[%d].THcSignalHit.GetData()", i);
+    RVarDef entry7 {
+      adcPulseAmpTitle.at(i).Data(),
+      adcPulseAmpTitle.at(i).Data(),
+      adcPulseAmpVar.at(i).Data()
+    };
+    vars.push_back(entry7);
+ 
+    adcPulseTimeTitle.at(i) = fAdcNames.at(i) + "_adcPulseTime";
+    adcPulseTimeVar.at(i) = Form("fAdcPulseTime[%d].THcSignalHit.GetData()", i);
+    RVarDef entry8 {
+      adcPulseTimeTitle.at(i).Data(),
+      adcPulseTimeTitle.at(i).Data(),
+      adcPulseTimeVar.at(i).Data()
+    };
+    vars.push_back(entry8);
 
-    // adcMultiplicityTitle.at(i) = fAdcNames.at(i) + "_adcMultiplicity";
-    // adcMultiplicityVar.at(i) = "fAdcMultiplicity.THcSignalHit.GetData()";
-    // RVarDef entry8 {
-    //   adcMultiplicityTitle.at(i).Data(),
-    //   adcMultiplicityTitle.at(i).Data(),
-    //   adcMultiplicityVar.at(i).Data()
-    // };
-    // vars.push_back(entry8);
-  
-    // adcPulseTimeTitle.at(i) = fAdcNames.at(i) + "_adcPulseTime";
-    // adcPulseTimeVar.at(i) = "fAdcPulseTime.THcSignalHit.GetData()";
-    // RVarDef entry9 {
-    //   adcPulseTimeTitle.at(i).Data(),
-    //   adcPulseTimeTitle.at(i).Data(),
-    //   adcPulseTimeVar.at(i).Data()
-    // };
-    // vars.push_back(entry9);
+    adcErrorFlagTitle.at(i) = fAdcNames.at(i) + "_adcErrorFlag";
+    adcErrorFlagVar.at(i) = Form("fAdcErrorFlag[%d].THcSignalHit.GetData()", i);
+    RVarDef entry9 {
+      adcErrorFlagTitle.at(i).Data(),
+      adcErrorFlagTitle.at(i).Data(),
+      adcErrorFlagVar.at(i).Data()
+    };
+    vars.push_back(entry9);
+
+    adcMultiplicityTitle.at(i) = fAdcNames.at(i) + "_adcMultiplicity";
+    adcMultiplicityVar.at(i) = Form("fAdcMultiplicity[%d].THcSignalHit.GetData()", i);
+    RVarDef entry10 {
+      adcMultiplicityTitle.at(i).Data(),
+      adcMultiplicityTitle.at(i).Data(),
+      adcMultiplicityVar.at(i).Data()
+    };
+    vars.push_back(entry10);
   } // fNumAdc loop
 
-  // // Push the variable names for TDC channels.
-  // vector<TString> tdcTimeRawTitle(fNumTdc),      tdcTimeRawVar(fNumTdc);
-  // vector<TString> tdcTimeTitle(fNumTdc),         tdcTimeVar(fNumTdc);
-  // vector<TString> tdcMultiplicityTitle(fNumTdc), tdcMultiplicityVar(fNumTdc);
+  // Loop through the adcNames defined in the trigger parameter file, 
+  // asign them a leaf name, and acquire the associated data object
+  vector<TString> tdcTimeRawTitle(fNumTdc),      tdcTimeRawVar(fNumTdc);
+  vector<TString> tdcTimeTitle(fNumTdc),         tdcTimeVar(fNumTdc);
+  vector<TString> tdcMultiplicityTitle(fNumTdc), tdcMultiplicityVar(fNumTdc);
 
-  // for (int i = 0; i < fNumTdc; i++) {
-  //   tdcTimeRawTitle.at(i) = fTdcNames.at(i) + "_tdcTimeRaw";
-  //   tdcTimeRawVar.at(i) = "fTdcTimeRaw.THcSignalHit.GetData()";
-  //   RVarDef entry1 {
-  //     tdcTimeRawTitle.at(i).Data(),
-  //     tdcTimeRawTitle.at(i).Data(),
-  //     tdcTimeRawVar.at(i).Data()
-  //   };
-  //   vars.push_back(entry1);
+  for (int i = 0; i < fNumTdc; i++) {
+    tdcTimeRawTitle.at(i) = fTdcNames.at(i) + "_tdcTimeRaw";
+    tdcTimeRawVar.at(i) = Form("fTdcTimeRaw[%d].THcSignalHit.GetData()", i);
+    RVarDef entry1 {
+      tdcTimeRawTitle.at(i).Data(),
+      tdcTimeRawTitle.at(i).Data(),
+      tdcTimeRawVar.at(i).Data()
+    };
+    vars.push_back(entry1);
 
-  //   tdcTimeTitle.at(i) = fTdcNames.at(i) + "_tdcTime";
-  //   tdcTimeVar.at(i) = "fTdcTime.THcSignalHit.GetData()";
-  //   RVarDef entry2 {
-  //     tdcTimeTitle.at(i).Data(),
-  //     tdcTimeTitle.at(i).Data(),
-  //     tdcTimeVar.at(i).Data()
-  //   };
-  //   vars.push_back(entry2);
+    tdcTimeTitle.at(i) = fTdcNames.at(i) + "_tdcTime";
+    tdcTimeVar.at(i) = Form("fTdcTime[%d].THcSignalHit.GetData()", i);
+    RVarDef entry2 {
+      tdcTimeTitle.at(i).Data(),
+      tdcTimeTitle.at(i).Data(),
+      tdcTimeVar.at(i).Data()
+    };
+    vars.push_back(entry2);
 
-  //   tdcMultiplicityTitle.at(i) = fTdcNames.at(i) + "_tdcMultiplicity";
-  //   tdcMultiplicityVar.at(i) = "fTdcMultiplicity.THcSignalHit.GetData()";
-  //   RVarDef entry3 {
-  //     tdcMultiplicityTitle.at(i).Data(),
-  //     tdcMultiplicityTitle.at(i).Data(),
-  //     tdcMultiplicityVar.at(i).Data()
-  //   };
-  //   vars.push_back(entry3);
-  // } // fNumTdc loop
+    tdcMultiplicityTitle.at(i) = fTdcNames.at(i) + "_tdcMultiplicity";
+    tdcMultiplicityVar.at(i) = Form("fTdcMultiplicity[%d].THcSignalHit.GetData()", i);
+    RVarDef entry3 {
+      tdcMultiplicityTitle.at(i).Data(),
+      tdcMultiplicityTitle.at(i).Data(),
+      tdcMultiplicityVar.at(i).Data()
+    };
+    vars.push_back(entry3);
+  } // fNumTdc loop
 
   RVarDef end {0};
   vars.push_back(end);
   return DefineVarsFromList(vars.data(), mode);
+
+  //return DefineVarsFromList(vars, mode);
 }
 
 inline
 void THcTrigger::Clear(Option_t* opt)
 {
   
-  // for (int i = 0; i < fNumAdc; i++) {
-  //   frAdcPedRaw.at(i)->Clear("C");
-  // }
-  // Clear the hit lists
-  frAdcPedRaw.clear();
-  frAdcPulseIntRaw->Clear();
-  frAdcPulseAmpRaw->Clear();
-  frAdcPulseTimeRaw->Clear();
-
-  frAdcPed->Clear();
-  frAdcPulseInt->Clear();
-  frAdcPulseAmp->Clear();
-  frAdcPulseTime->Clear();
-  fAdcErrorFlag->Clear();
+  // Clear ADC the hit lists
+  fAdcPulsePedRaw.clear();
+  fAdcPulseIntRaw.clear();
+  fAdcPulseAmpRaw.clear();
+  fAdcPulseTimeRaw.clear();
+  fAdcPulsePed.clear();
+  fAdcPulseInt.clear();
+  fAdcPulseAmp.clear();
+  fAdcPulseTime.clear();
+  fAdcErrorFlag.clear();
+  fAdcMultiplicity.clear();
+  // Clear the TDC hit lists
+  fTdcTimeRaw.clear();
+  fTdcTime.clear();
+  fTdcMultiplicity.clear();
 
   // for (UInt_t ielem = 0; ielem < fNumAdcHits.size(); ielem++)
   //   fNumAdcHits.at(ielem) = 0;
@@ -337,7 +352,6 @@ void THcTrigger::Clear(Option_t* opt)
   for (UInt_t ielem = 0; ielem < fGoodAdcPed.size(); ielem++) {
     fGoodAdcPed.at(ielem)         = 0.0;
     fGoodAdcPulseInt.at(ielem)    = 0.0;
-    fGoodAdcPulseIntRaw.at(ielem) = 0.0;
     fGoodAdcPulseAmp.at(ielem)    = 0.0;
     fGoodAdcPulseTime.at(ielem)   = kBig;
     fGoodAdcTdcDiffTime.at(ielem) = kBig;
@@ -360,100 +374,72 @@ Int_t THcTrigger::Decode(const THaEvData& evData) {
   // Process each hit and fill variables.
   Int_t iHit     = 0;
   Int_t nAdcHits = 0;
+  Int_t nTdcHits = 0;
 
-  cout << "/n/n/n=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!/n/n/n" << endl;
-
-  cout << "Made it to decode!" << endl;
-  cout << "numHits = " << numHits << endl;
+  cout << "\n\n\n=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!\n\n\n" << endl;
+  cout << "iHit = " << iHit << " numHits = " << numHits << endl;
 
   while (iHit < numHits) {
 
-    THcTriggerHit* hit       = dynamic_cast <THcTriggerHit*> (fRawHitList->At(iHit));
-    Int_t          npmt      = hit->fCounter;
+    THcTriggerHit* hitObj  = dynamic_cast <THcTriggerHit*> (fRawHitList->At(iHit));
+    Int_t          pmtNum  = hitObj->fCounter;
 
-    cout << "hit = " << hit << " hit->fPlane = " << hit->fPlane << " npmt = " << npmt << endl;
+    cout << "hitObj = " << hitObj << " hitObj->fPlane = " << hitObj->fPlane << " pmtNum = " << pmtNum << endl;
     
-    if (hit->fPlane == 1) {
+    if (hitObj->fPlane == 1) {
       
-      THcRawAdcHit& rawAdcHit = hit->GetRawAdcHitPos();
-
-      cout << "&rawAdcHit = " << &rawAdcHit << endl;
+      THcRawAdcHit& rawAdcHit = hitObj->GetRawAdcHitPos();
+      
       cout << "rawAdcHit.GetNPulses() = " << rawAdcHit.GetNPulses() << endl;
 
       for (UInt_t thit = 0; thit < rawAdcHit.GetNPulses(); thit++) {
 
 	cout << "thit = " << thit << endl;
 
-	for (int i = 0; i < fNumAdc; i++) {
-	  cout << "i = " << i << endl;
-
-	  cout << frAdcPedRaw[i] << endl;
-	  //cout << frAdcPedRaw.at(i) << endl;
-
-	  // TClonesArray *temp = frAdcPedRaw.at(i);
-	  
-	  // cout << "temp = " << temp << endl;
-
-	  // ((THcSignalHit*) temp->ConstructedAt(nAdcHits))->Set(npmt, rawAdcHit.GetPedRaw());	  
-	  // frAdcPedRaw.push_back(temp);
-
-	  // ((THcSignalHit*) frAdcPedRaw.at(i)->ConstructedAt(nAdcHits))->Set(npmt, rawAdcHit.GetPedRaw());
-	  //((THcSignalHit*) frAdcPedRaw[i]->ConstructedAt(nAdcHits))->Set(npmt, rawAdcHit.GetPedRaw()); 
+	for (UInt_t iAdcChan = 0; iAdcChan < fNumAdc; iAdcChan++) {
+	  // Acquire raw ADC objects
+	  ((THcSignalHit*) fAdcPulsePedRaw[iAdcChan]->ConstructedAt(nAdcHits))->Set(pmtNum, rawAdcHit.GetPedRaw());
+	  ((THcSignalHit*) fAdcPulseIntRaw[iAdcChan]->ConstructedAt(nAdcHits))->Set(pmtNum, rawAdcHit.GetPulseIntRaw());
+	  ((THcSignalHit*) fAdcPulseAmpRaw[iAdcChan]->ConstructedAt(nAdcHits))->Set(pmtNum, rawAdcHit.GetPulseAmpRaw());
+	  ((THcSignalHit*) fAdcPulseTimeRaw[iAdcChan]->ConstructedAt(nAdcHits))->Set(pmtNum, rawAdcHit.GetPulseTimeRaw());
+	  // Acquire ADC objects
+	  ((THcSignalHit*) fAdcPulsePed[iAdcChan]->ConstructedAt(nAdcHits))->Set(pmtNum, rawAdcHit.GetPed()); 
+	  ((THcSignalHit*) fAdcPulseInt[iAdcChan]->ConstructedAt(nAdcHits))->Set(pmtNum, rawAdcHit.GetPulseInt()); 
+	  ((THcSignalHit*) fAdcPulseAmp[iAdcChan]->ConstructedAt(nAdcHits))->Set(pmtNum, rawAdcHit.GetPulseAmp()); 
+	  ((THcSignalHit*) fAdcPulseTime[iAdcChan]->ConstructedAt(nAdcHits))->Set(pmtNum, rawAdcHit.GetPulseTime()+fAdcTdcOffset); 
+	  // ((THcSignalHit*) fAdcMultiplicity[iAdcChan]->ConstructedAt(nAdcHits))->Set(pmtNum, rawAdcHit.GetNPulses()); 
+	  if (rawAdcHit.GetPulseAmpRaw(thit) > 0)  ((THcSignalHit*) fAdcErrorFlag[iAdcChan]->ConstructedAt(nAdcHits))->Set(pmtNum, 0); 
+	  if (rawAdcHit.GetPulseAmpRaw(thit) <= 0) ((THcSignalHit*) fAdcErrorFlag[iAdcChan]->ConstructedAt(nAdcHits))->Set(pmtNum, 1); 
 	}
-
-	cout << "Done with pedestal hit loop" << endl;
-
-      // ((THcSignalHit*) frAdcPedRaw->ConstructedAt(nAdcHits))->Set(npmt, rawAdcHit.GetPedRaw());
-      // ((THcSignalHit*) frAdcPed->ConstructedAt(nAdcHits))->Set(npmt, rawAdcHit.GetPed());
-
-      // ((THcSignalHit*) frAdcPulseIntRaw->ConstructedAt(nAdcHits))->Set(npmt, rawAdcHit.GetPulseIntRaw(thit));
-      // ((THcSignalHit*) frAdcPulseInt->ConstructedAt(nAdcHits))->Set(npmt, rawAdcHit.GetPulseInt(thit));
-
-      // ((THcSignalHit*) frAdcPulseAmpRaw->ConstructedAt(nAdcHits))->Set(npmt, rawAdcHit.GetPulseAmpRaw(thit));
-      // ((THcSignalHit*) frAdcPulseAmp->ConstructedAt(nAdcHits))->Set(npmt, rawAdcHit.GetPulseAmp(thit));
-
-      // ((THcSignalHit*) frAdcPulseTimeRaw->ConstructedAt(nAdcHits))->Set(npmt, rawAdcHit.GetPulseTimeRaw(thit));
-      // ((THcSignalHit*) frAdcPulseTime->ConstructedAt(nAdcHits))->Set(npmt, rawAdcHit.GetPulseTime(thit)+fAdcTdcOffset);
-
-      // if (rawAdcHit.GetPulseAmpRaw(thit) > 0)  ((THcSignalHit*) fAdcErrorFlag->ConstructedAt(nAdcHits))->Set(npmt, 0);
-      // if (rawAdcHit.GetPulseAmpRaw(thit) <= 0) ((THcSignalHit*) fAdcErrorFlag->ConstructedAt(nAdcHits))->Set(npmt, 1);
-
-  //     // fAdcPedRaw[cnt] = rawAdcHit.GetPedRaw();
-  //     // fAdcPulseIntRaw[cnt] = rawAdcHit.GetPulseIntRaw();
-  //     // fAdcPulseAmpRaw[cnt] = rawAdcHit.GetPulseAmpRaw();
-  //     // fAdcPulseTimeRaw[cnt] = rawAdcHit.GetPulseTimeRaw();
-  //     // fAdcPulseTime[cnt] = rawAdcHit.GetPulseTime()+fAdcTdcOffset;
-
-  //     // fAdcPed[cnt] = rawAdcHit.GetPed();
-  //     // fAdcPulseInt[cnt] = rawAdcHit.GetPulseInt();
-  //     // fAdcPulseAmp[cnt] = rawAdcHit.GetPulseAmp();
-
-  //     // fAdcMultiplicity[cnt] = rawAdcHit.GetNPulses();
-
-      nAdcHits++;
+	nAdcHits++;
       }  // Adc pulses
 
-    }  // Adc hits
+    }  // plane == 1 conditional
 
-    cout << "/n/n/n=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!/n/n/n" << endl;
+    if (hitObj->fPlane == 2) {
+      
+      THcRawTdcHit& rawTdcHit = hitObj->GetRawTdcHitPos();
 
-  //   // else if (hit->fPlane == 2) {
+      cout << "&rawTdcHit = " << &rawTdcHit << endl;
+      cout << "rawTdcHit.GetNHits() = " << rawTdcHit.GetNHits() << endl;
+      cout << "pmtNum = " << pmtNum << endl;
 
-  //   //   THcRawTdcHit rawTdcHit = hit->GetRawTdcHit();
-
-  //   //   fTdcTimeRaw[cnt] = rawTdcHit.GetTimeRaw();
-  //   //   fTdcTime[cnt] = rawTdcHit.GetTime()*fTdcChanperNS+fTdcOffset;
-
-  //   //   fTdcMultiplicity[cnt] = rawTdcHit.GetNHits();
-  //   // } // Tdc hits
-  //   // else {
-  //   //   throw std::out_of_range(
-  //   //     "`THcTrigDet::Decode`: only planes `1` and `2` available!"
-  //   //   );
-  //   // }
-  //   iHit++;
+      for (UInt_t iTdcChan = 0; iTdcChan < fNumTdc; iTdcChan++) {
+	((THcSignalHit*) fTdcTimeRaw[iTdcChan]->ConstructedAt(nTdcHits))->Set(pmtNum, rawTdcHit.GetTimeRaw());
+	((THcSignalHit*) fTdcTime[iTdcChan]->ConstructedAt(nTdcHits))->Set(pmtNum, rawTdcHit.GetTime()*fTdcChanPerNs+fTdcOffset);
+	// ((THcSignalHit*) fTdcMultiplicity[iTdcChan]->ConstructedAt(nTdcHits))->Set(pmtNum, rawTdcHit.GetNHits());
+	((THcSignalHit*) fTdcMultiplicity[iTdcChan]->ConstructedAt(nTdcHits))->Set(12, rawTdcHit.GetNHits());
+      }
+      nTdcHits++;
+    } // plane == 2 conditional
+    // else 
+    //   throw std::out_of_range("`THcTrigDet::Decode`: only planes `1` and `2` available!");
+    iHit++;
   } // while hits
-  return 0;
+
+  cout << "\n\n\n=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!\n\n\n" << endl;
+
+  return iHit;
 }
 
 Int_t THcTrigger::CoarseProcess( TClonesArray&  )
@@ -464,51 +450,6 @@ Int_t THcTrigger::CoarseProcess( TClonesArray&  )
 Int_t THcTrigger::FineProcess( TClonesArray&  )
 {
   return 0;
-}
-
-// //_____________________________________________________________________________
-// Int_t THcTrigger::CoarseProcess( TClonesArray&  )
-// {
-//   Double_t StartTime = 0.0;
-//   if( fglHod ) StartTime = fglHod->GetStartTime();
-
-//   // Loop over the elements in the TClonesArray
-//   for(Int_t ielem = 0; ielem < frAdcPulseInt->GetEntries(); ielem++) {
-
-//     Int_t    npmt           = ((THcSignalHit*) frAdcPulseInt->ConstructedAt(ielem))->GetPaddleNumber() - 1;
-//     Double_t pulsePed       = ((THcSignalHit*) frAdcPed->ConstructedAt(ielem))->GetData();
-//     Double_t pulseInt       = ((THcSignalHit*) frAdcPulseInt->ConstructedAt(ielem))->GetData();
-//     Double_t pulseIntRaw    = ((THcSignalHit*) frAdcPulseIntRaw->ConstructedAt(ielem))->GetData();
-//     Double_t pulseAmp       = ((THcSignalHit*) frAdcPulseAmp->ConstructedAt(ielem))->GetData();
-//     Double_t pulseTime      = ((THcSignalHit*) frAdcPulseTime->ConstructedAt(ielem))->GetData();
-//     Double_t adctdcdiffTime = StartTime-pulseTime;
-//     Bool_t   errorFlag      = ((THcSignalHit*) fAdcErrorFlag->ConstructedAt(ielem))->GetData();
-//     Bool_t   pulseTimeCut   = adctdcdiffTime > fAdcTimeWindowMin && adctdcdiffTime < fAdcTimeWindowMax;
-
-//     // By default, the last hit within the timing cut will be considered "good"
-//     if (!errorFlag && pulseTimeCut) {
-//       fGoodAdcPed.at(npmt)         = pulsePed;
-//       fGoodAdcPulseInt.at(npmt)    = pulseInt;
-//       fGoodAdcPulseIntRaw.at(npmt) = pulseIntRaw;
-//       fGoodAdcPulseAmp.at(npmt)    = pulseAmp;
-//       fGoodAdcPulseTime.at(npmt)   = pulseTime;
-//       fGoodAdcTdcDiffTime.at(npmt) = adctdcdiffTime;
-
-//       fNpe.at(npmt) = fGain[npmt]*fGoodAdcPulseInt.at(npmt);
-//       fNpeSum += fNpe.at(npmt);
-
-//       fTotNumGoodAdcHits++;
-//       fNumGoodAdcHits.at(npmt) = npmt + 1;
-//     }
-//   }
-//   return 0;
-// }
-
-void THcTrigger::Setup(const char* name, const char* description) {
-  // Prefix for parameters in `param` file.
-  string kwPrefix = string(GetApparatus()->GetName()) + "_" + name;
-  transform(kwPrefix.begin(), kwPrefix.end(), kwPrefix.begin(), ::tolower);
-  fKwPrefix = kwPrefix;
 }
 
 void THcTrigger::SetSpectName( const char* name) {

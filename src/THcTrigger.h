@@ -41,6 +41,7 @@ class THcTrigger : public THaNonTrackingDetector, public THcHitList {
   // Vector/TClonesArray length parameters
   static const Int_t MaxNumPmt      = 200;
   static const Int_t MaxNumAdcPulse = 4;
+  static const Int_t MaxNumTdcHits  = 128;
 
   THcTrigger();  // for ROOT I/O
  protected:
@@ -58,30 +59,36 @@ class THcTrigger : public THaNonTrackingDetector, public THcHitList {
   Double_t fAdcTimeWindowMin;
   Double_t fAdcTimeWindowMax;
   
-  /* Int_t     fDebugAdc; */
-  /* Double_t* fWidth; */
-
+  // Various data objects
   vector<Int_t>    eventtypes;
   vector<string>   fAdcNames;
   vector<string>   fTdcNames;
+ 
+  // 12 Gev FADC variables
+  // Raw ADC variables
+  vector<TClonesArray*> fAdcPulsePedRaw;
+  vector<TClonesArray*> fAdcPulseIntRaw;
+  vector<TClonesArray*> fAdcPulseAmpRaw;
+  vector<TClonesArray*> fAdcPulseTimeRaw;
+  // ADC veriables
+  vector<TClonesArray*> fAdcPulsePed;
+  vector<TClonesArray*> fAdcPulseInt;
+  vector<TClonesArray*> fAdcPulseAmp;
+  vector<TClonesArray*> fAdcPulseTime;
+  vector<TClonesArray*> fAdcErrorFlag;
+  vector<TClonesArray*> fAdcMultiplicity;
+  // 12 GeV TDC variables
+  vector<TClonesArray*> fTdcTimeRaw;
+  vector<TClonesArray*> fTdcTime;
+  vector<TClonesArray*> fTdcMultiplicity;
+
+  // Good ADC & TDC variables
   vector<Double_t> fGoodAdcPed;
   vector<Double_t> fGoodAdcPulseInt;
-  vector<Double_t> fGoodAdcPulseIntRaw;
   vector<Double_t> fGoodAdcPulseAmp;
   vector<Double_t> fGoodAdcPulseTime;
   vector<Double_t> fGoodAdcTdcDiffTime; 
- 
-  // 12 Gev FADC variables
-  //TClonesArray* frAdcPedRaw;
-  vector<TClonesArray*> frAdcPedRaw;
-  TClonesArray* frAdcPulseIntRaw;
-  TClonesArray* frAdcPulseAmpRaw;
-  TClonesArray* frAdcPulseTimeRaw;
-  TClonesArray* frAdcPed;
-  TClonesArray* frAdcPulseInt;
-  TClonesArray* frAdcPulseAmp;
-  TClonesArray* frAdcPulseTime;
-  TClonesArray* fAdcErrorFlag;
+  vector<Double_t> fGoodTdcTime;
 
   /* void Setup(const char* name, const char* description); */
   THcHodoscope* fglHod;	// Hodoscope to get start time
